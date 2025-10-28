@@ -1,0 +1,16 @@
+.vscode/**
+.vscode-test/**
+src/**
+.gitignore
+.eslintrc.js
+tsconfig.json
+**/*.map
+**/*.ts
+!out/**/*.js
+node_modules/**
+examples/**
+DEVELOPMENT.md
+TESTING.md
+go-memory-visualizer.code-workspace
+*.log
+out/test/**

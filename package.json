@@ -1,0 +1,109 @@
+{
+  "name": "go-memory-visualizer",
+  "displayName": "Go Memory Layout Visualizer",
+  "description": "Real-time visualization of Go struct memory layout, padding, and alignment with optimization suggestions",
+  "version": "0.1.0",
+  "publisher": "RhinoSoftware",
+  "author": {
+    "name": "RhinoSoftware"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1rhino2/go-memory-visualizer"
+  },
+  "bugs": {
+    "url": "https://github.com/1rhino2/go-memory-visualizer/issues"
+  },
+  "homepage": "https://github.com/1rhino2/go-memory-visualizer#readme",
+  "galleryBanner": {
+    "color": "#00ADD8",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Linters"
+  ],
+  "keywords": [
+    "go",
+    "golang",
+    "memory",
+    "struct",
+    "layout",
+    "padding",
+    "alignment",
+    "optimization",
+    "performance"
+  ],
+  "activationEvents": [
+    "onLanguage:go"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "goMemoryVisualizer.optimizeStruct",
+        "title": "Go: Optimize Struct Memory Layout"
+      },
+      {
+        "command": "goMemoryVisualizer.showMemoryLayout",
+        "title": "Go: Show Memory Layout"
+      },
+      {
+        "command": "goMemoryVisualizer.toggleArchitecture",
+        "title": "Go: Toggle Architecture (amd64/arm64/386)"
+      }
+    ],
+    "configuration": {
+      "title": "Go Memory Visualizer",
+      "properties": {
+        "goMemoryVisualizer.defaultArchitecture": {
+          "type": "string",
+          "enum": ["amd64", "arm64", "386"],
+          "default": "amd64",
+          "description": "Default architecture for memory layout calculation"
+        },
+        "goMemoryVisualizer.showInlineAnnotations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline memory layout annotations above struct fields"
+        },
+        "goMemoryVisualizer.highlightPadding": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight padding waste in structs"
+        },
+        "goMemoryVisualizer.paddingWarningThreshold": {
+          "type": "number",
+          "default": 8,
+          "description": "Minimum padding bytes to trigger warning (bytes)"
+        },
+        "goMemoryVisualizer.showCacheLineWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings when structs cross 64-byte cache line boundaries"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "@vscode/test-electron": "^2.3.8"
+  },
+  "dependencies": {}
+}

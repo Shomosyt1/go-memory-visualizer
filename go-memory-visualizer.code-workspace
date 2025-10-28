@@ -1,0 +1,51 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "goMemoryVisualizer.defaultArchitecture": "amd64",
+    "goMemoryVisualizer.showInlineAnnotations": true,
+    "goMemoryVisualizer.highlightPadding": true,
+    "goMemoryVisualizer.paddingWarningThreshold": 8,
+    "goMemoryVisualizer.showCacheLineWarnings": true
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run Extension",
+        "type": "extensionHost",
+        "request": "launch",
+        "args": [
+          "--extensionDevelopmentPath=${workspaceFolder}"
+        ],
+        "outFiles": [
+          "${workspaceFolder}/out/**/*.js"
+        ],
+        "preLaunchTask": "${defaultBuildTask}"
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "type": "npm",
+        "script": "compile",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$tsc"
+      },
+      {
+        "type": "npm",
+        "script": "watch",
+        "isBackground": true,
+        "problemMatcher": "$tsc-watch"
+      }
+    ]
+  }
+}
