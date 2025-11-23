@@ -5,8 +5,14 @@ interface TypeSizeInfo {
   alignment: number;
 }
 
+interface StructDefinition {
+  name: string;
+  fields: Array<{ name: string; typeName: string }>;
+}
+
 export class MemoryCalculator {
   private arch: Architecture;
+  private structRegistry: Map<string, StructDefinition> = new Map();
 
   constructor(architecture: Architecture = 'amd64') {
     this.arch = architecture;
@@ -18,6 +24,14 @@ export class MemoryCalculator {
 
   getArchitecture(): Architecture {
     return this.arch;
+  }
+
+  registerStruct(name: string, fields: Array<{ name: string; typeName: string }>): void {
+    this.structRegistry.set(name, { name, fields });
+  }
+
+  clearStructRegistry(): void {
+    this.structRegistry.clear();
   }
 
   getTypeInfo(typeName: string): TypeSizeInfo {
@@ -83,7 +97,14 @@ export class MemoryCalculator {
           return { size: ptrSize * 2, alignment: ptrSize };
         }
         
-        // Default for unknown types (custom structs, etc.)
+        // Check if it's a registered custom struct
+        const structDef = this.structRegistry.get(typeName);
+        if (structDef) {
+          const layout = this.calculateStructSize(structDef.fields);
+          return { size: layout.size, alignment: layout.alignment };
+        }
+        
+        // Default for unknown types (treat as pointer-sized)
         return { size: ptrSize, alignment: ptrSize };
     }
   }
