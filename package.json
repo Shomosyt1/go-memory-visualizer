@@ -2,7 +2,7 @@
   "name": "go-memory-visualizer",
   "displayName": "Go Memory Layout Visualizer",
   "description": "Real-time visualization of Go struct memory layout, padding, and alignment with optimization suggestions",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "RhinoSoftware",
   "author": {
     "name": "RhinoSoftware"
@@ -66,6 +66,10 @@
       {
         "command": "goMemoryVisualizer.toggleArchitecture",
         "title": "Go: Toggle Architecture (amd64/arm64/386)"
+      },
+      {
+        "command": "goMemoryVisualizer.exportLayout",
+        "title": "Go: Export Memory Layout Report"
       }
     ],
     "configuration": {
