@@ -12,9 +12,67 @@ export class GoParser {
     this.calculator.setArchitecture(arch);
   }
 
+  private registerStructDefinitions(content: string): void {
+    const lines = content.split('\n');
+    const structStartRegex = /^\s*type\s+(\w+)\s+struct\s*\{/;
+    
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const match = line.match(structStartRegex);
+      
+      if (match) {
+        const structName = match[1];
+        const fields: Array<{ name: string; typeName: string }> = [];
+        
+        i++;
+        while (i < lines.length) {
+          const fieldLine = lines[i].trim();
+          
+          if (fieldLine.startsWith('}')) {
+            break;
+          }
+          
+          if (!fieldLine || fieldLine.startsWith('//')) {
+            i++;
+            continue;
+          }
+          
+          const fieldMatch = fieldLine.match(/^(\w+(?:\s*,\s*\w+)*)\s+(.+?)(?:\s+`.*`)?(?:\s*\/\/.*)?$/);
+          const embeddedMatch = fieldLine.match(/^(\*?\w+)(?:\s+`.*`)?(?:\s*\/\/.*)?$/);
+          
+          if (fieldMatch) {
+            const names = fieldMatch[1].split(',').map(n => n.trim());
+            const typeName = fieldMatch[2].trim();
+            
+            for (const name of names) {
+              fields.push({ name, typeName });
+            }
+          } else if (embeddedMatch && !fieldMatch) {
+            const typeName = embeddedMatch[1].trim();
+            const fieldName = typeName.startsWith('*') ? typeName.substring(1) : typeName;
+            fields.push({ name: fieldName, typeName });
+          }
+          
+          i++;
+        }
+        
+        this.calculator.registerStruct(structName, fields);
+      }
+      
+      i++;
+    }
+  }
+
   parseStructs(content: string): StructInfo[] {
     const structs: StructInfo[] = [];
     const lines = content.split('\n');
+    
+    // Clear the struct registry before parsing
+    this.calculator.clearStructRegistry();
+    
+    // First pass: register all struct definitions
+    this.registerStructDefinitions(content);
     
     // match struct declarations like: type MyStruct struct {
     const structStartRegex = /^\s*type\s+(\w+)\s+struct\s*\{/;
@@ -45,8 +103,10 @@ export class GoParser {
             continue;
           }
           
-          // Parse field: name type or name, name2 type
+          // Parse field: name type or name, name2 type or just Type (embedded)
           const fieldMatch = fieldLine.match(/^(\w+(?:\s*,\s*\w+)*)\s+(.+?)(?:\s+`.*`)?(?:\s*\/\/.*)?$/);
+          const embeddedMatch = fieldLine.match(/^(\*?\w+)(?:\s+`.*`)?(?:\s*\/\/.*)?$/);
+          
           if (fieldMatch) {
             const names = fieldMatch[1].split(',').map(n => n.trim());
             const typeName = fieldMatch[2].trim();
@@ -54,6 +114,11 @@ export class GoParser {
             for (const name of names) {
               fields.push({ name, typeName, lineNumber: i });
             }
+          } else if (embeddedMatch && !fieldMatch) {
+            // Embedded field: just the type name, no explicit field name
+            const typeName = embeddedMatch[1].trim();
+            const fieldName = typeName.startsWith('*') ? typeName.substring(1) : typeName;
+            fields.push({ name: fieldName, typeName, lineNumber: i });
           }
           
           i++;
