@@ -410,7 +410,7 @@ Contributions welcome! Please:
 ### Development Setup
 
 ```bash
-git clone https://github.com/yourusername/go-memory-visualizer.git
+git clone https://github.com/1rhino2/go-memory-visualizer.git
 cd go-memory-visualizer
 npm install
 npm run compile
