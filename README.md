@@ -1,6 +1,6 @@
 # Go Memory Layout Visualizer
 
-**v0.2.0 is now available!** [Download from GitHub](https://github.com/1rhino2/go-memory-visualizer/releases/tag/v0.2.0) | [Install from OpenVSX](https://open-vsx.org/extension/RhinoSoftware/go-memory-visualizer) | [Visit Website](https://1rhino2.github.io/go-memory-visualizer/)
+**v0.2.1 is now available!** [Download from GitHub](https://github.com/1rhino2/go-memory-visualizer/releases/tag/v0.2.1) | [Install from OpenVSX](https://open-vsx.org/extension/RhinoSoftware/go-memory-visualizer) | [Visit Website](https://1rhino2.github.io/go-memory-visualizer/)
 
 
 
@@ -469,6 +469,11 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - [x] Nested struct support
 - [x] Embedded field handling
 - [x] Export layout reports
+
+### v0.2.1 - Released 2025-11-26
+
+- [x] Fixed export error handling
+- [x] Updated deprecated API usage
 
 ### v0.3.0 (Planned)
 
