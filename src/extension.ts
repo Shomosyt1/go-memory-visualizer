@@ -323,16 +323,22 @@ async function exportLayoutCommand(parser: GoParser) {
   }
 
   const defaultFileName = `memory-layout-${currentArch}-${Date.now()}.${extension}`;
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+  
   const uri = await vscode.window.showSaveDialog({
-    defaultUri: vscode.Uri.file(path.join(vscode.workspace.rootPath || '', defaultFileName)),
+    defaultUri: vscode.Uri.file(path.join(workspaceFolder, defaultFileName)),
     filters: {
-      [format]: [extension]
+      'Memory Layout': [extension]
     }
   });
 
   if (uri) {
-    fs.writeFileSync(uri.fsPath, content);
-    vscode.window.showInformationMessage(`Memory layout exported to ${uri.fsPath}`);
+    try {
+      fs.writeFileSync(uri.fsPath, content);
+      vscode.window.showInformationMessage(`Memory layout exported successfully`);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Export failed: ${(error as Error).message}`);
+    }
   }
 }
 

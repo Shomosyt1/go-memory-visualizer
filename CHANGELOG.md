@@ -2,6 +2,14 @@
 
 All notable changes to the Go Memory Layout Visualizer extension will be documented in this file.
 
+## [0.2.1] - 2025-11-26
+
+### Fixed
+
+- Added error handling for file export operations
+- Fixed deprecated `workspace.rootPath` usage, now uses `workspaceFolders`
+- Export success message no longer exposes full file path
+
 ## [0.2.0] - 2025-11-23
 
 ### Added
