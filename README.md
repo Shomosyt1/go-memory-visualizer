@@ -1,6 +1,6 @@
 # Go Memory Layout Visualizer
 
-**v0.2.1 is now available!** [Download from GitHub](https://github.com/1rhino2/go-memory-visualizer/releases/tag/v0.2.1) | [Install from OpenVSX](https://open-vsx.org/extension/RhinoSoftware/go-memory-visualizer) | [Visit Website](https://1rhino2.github.io/go-memory-visualizer/)
+**v0.2.2 is now available!** [Download from GitHub](https://github.com/1rhino2/go-memory-visualizer/releases/tag/v0.2.2) | [Install from OpenVSX](https://open-vsx.org/extension/RhinoSoftware/go-memory-visualizer) | [Visit Website](https://1rhino2.github.io/go-memory-visualizer/)
 
 
 
@@ -474,6 +474,12 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - [x] Fixed export error handling
 - [x] Updated deprecated API usage
+
+### v0.2.2 - Released 2025-11-26
+
+- [x] **Security fix**: Patched path traversal vulnerability in export function
+- [x] Added path validation and normalization
+- [x] Implemented write verification and explicit file permissions
 
 ### v0.3.0 (Planned)
 
