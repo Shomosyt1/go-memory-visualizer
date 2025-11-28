@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { GoParser } from './goParser';
 import { StructOptimizer } from './optimizer';
-import { Architecture, ExportFormat } from './types';
+import { Architecture, ExportFormat, CACHE_LINE_SIZE } from './types';
 
 // default to amd64 since most devs use that
 let currentArch: Architecture = 'amd64';
@@ -11,6 +11,16 @@ let currentArch: Architecture = 'amd64';
 const paddingDecorationType = vscode.window.createTextEditorDecorationType({
   backgroundColor: 'rgba(255, 165, 0, 0.3)',
   border: '1px solid rgba(255, 165, 0, 0.5)',
+});
+
+const cacheLineCrossDecorationType = vscode.window.createTextEditorDecorationType({
+  backgroundColor: 'rgba(255, 100, 100, 0.25)',
+  border: '1px dashed rgba(255, 100, 100, 0.6)',
+  after: {
+    contentText: ' ⚠️ crosses cache line',
+    color: '#ff6b6b',
+    fontStyle: 'italic'
+  }
 });
 
 const annotationDecorationType = vscode.window.createTextEditorDecorationType({
@@ -89,6 +99,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   paddingDecorationType.dispose();
   annotationDecorationType.dispose();
+  cacheLineCrossDecorationType.dispose();
 }
 
 function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
@@ -102,22 +113,26 @@ function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
   
   const paddingRanges: vscode.DecorationOptions[] = [];
   const annotations: vscode.DecorationOptions[] = [];
+  const cacheLineCrossRanges: vscode.DecorationOptions[] = [];
   const paddingThreshold = config.get('paddingWarningThreshold', 8);
+  const showCacheLineWarnings = config.get('showCacheLineWarnings', true);
 
   for (const struct of structs) {
     for (const field of struct.fields) {
       const line = editor.document.lineAt(field.lineNumber);
       
-      // Build the inline annotation text
-      const annotation = `[${field.offset}-${field.offset + field.size - 1}] ${field.size}B`;
-      const paddingInfo = field.paddingAfter > 0 ? ` +${field.paddingAfter}B padding [!]` : '';
+      // Build the inline annotation text with cache line info
+      const cacheLineTag = field.crossesCacheLine ? ` [L${field.cacheLineStart}-${field.cacheLineEnd}]` : ` [L${field.cacheLineStart}]`;
+      const annotation = `[${field.offset}-${field.offset + field.size - 1}] ${field.size}B${cacheLineTag}`;
+      const paddingInfo = field.paddingAfter > 0 ? ` +${field.paddingAfter}B pad` : '';
       
       annotations.push({
         range: new vscode.Range(field.lineNumber, 0, field.lineNumber, 0),
         renderOptions: {
           before: {
             contentText: `  ${annotation}${paddingInfo}  `,
-            color: field.paddingAfter >= paddingThreshold ? '#ff6b6b' : '#888',
+            color: field.paddingAfter >= paddingThreshold ? '#ff6b6b' : 
+                   field.crossesCacheLine ? '#ffaa00' : '#888',
           }
         }
       });
@@ -129,11 +144,28 @@ function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
           hoverMessage: `This field has ${field.paddingAfter} bytes of padding after it. Consider reordering struct fields.`
         });
       }
+
+      // Highlight cache line crossings
+      if (showCacheLineWarnings && field.crossesCacheLine) {
+        cacheLineCrossRanges.push({
+          range: line.range,
+          hoverMessage: new vscode.MarkdownString(
+            `**⚠️ Cache Line Crossing**\n\n` +
+            `Field \`${field.name}\` (${field.size} bytes) spans cache lines ${field.cacheLineStart} and ${field.cacheLineEnd}.\n\n` +
+            `This can cause **false sharing** in concurrent access and reduce cache efficiency.\n\n` +
+            `Consider:\n` +
+            `- Padding to align to cache line boundary\n` +
+            `- Splitting into smaller fields\n` +
+            `- Using \`//go:align ${CACHE_LINE_SIZE}\` directive`
+          )
+        });
+      }
     }
   }
 
   editor.setDecorations(annotationDecorationType, annotations);
   editor.setDecorations(paddingDecorationType, paddingRanges);
+  editor.setDecorations(cacheLineCrossDecorationType, cacheLineCrossRanges);
 }
 
 async function optimizeStructCommand(parser: GoParser, optimizer: StructOptimizer) {
@@ -200,13 +232,30 @@ function showMemoryLayoutCommand(parser: GoParser) {
     output += `## ${struct.name}\n`;
     output += `Total Size: ${struct.totalSize} bytes\n`;
     output += `Alignment: ${struct.alignment} bytes\n`;
-    output += `Total Padding: ${struct.totalPadding} bytes\n\n`;
+    output += `Total Padding: ${struct.totalPadding} bytes\n`;
+    output += `Cache Lines: ${struct.cacheLinesCrossed} (${struct.cacheLinesCrossed * CACHE_LINE_SIZE} bytes)\n`;
     
-    output += '| Field | Type | Offset | Size | Padding |\n';
-    output += '|-------|------|--------|------|----------|\n';
+    if (struct.hotFields.length > 0) {
+      output += `⚠️ Fields crossing cache lines: ${struct.hotFields.join(', ')}\n`;
+    }
+    output += '\n';
+    
+    output += '| Field | Type | Offset | Size | Padding | Cache Line |\n';
+    output += '|-------|------|--------|------|---------|------------|\n';
     
     for (const field of struct.fields) {
-      output += `| ${field.name} | ${field.typeName} | ${field.offset} | ${field.size} | ${field.paddingAfter} |\n`;
+      const cacheLineStr = field.crossesCacheLine 
+        ? `${field.cacheLineStart}-${field.cacheLineEnd} ⚠️` 
+        : `${field.cacheLineStart}`;
+      output += `| ${field.name} | ${field.typeName} | ${field.offset} | ${field.size} | ${field.paddingAfter} | ${cacheLineStr} |\n`;
+    }
+    
+    output += '\n### Cache Line Breakdown\n\n';
+    output += '| Line | Bytes | Fields | Used | Padding |\n';
+    output += '|------|-------|--------|------|--------|\n';
+    
+    for (const cl of struct.cacheLines) {
+      output += `| ${cl.lineNumber} | ${cl.startOffset}-${cl.endOffset} | ${cl.fields.join(', ')} | ${cl.bytesUsed}B | ${cl.bytesPadding}B |\n`;
     }
     
     output += '\n';
@@ -229,6 +278,7 @@ function showMemoryLayoutCommand(parser: GoParser) {
           th, td { border: 1px solid var(--vscode-panel-border); padding: 8px; text-align: left; }
           th { background-color: var(--vscode-editor-background); }
           h1, h2 { color: var(--vscode-foreground); }
+          .warning { color: #ff6b6b; }
         </style>
       </head>
       <body>
@@ -424,10 +474,19 @@ class MemoryLayoutHoverProvider implements vscode.HoverProvider {
         markdown.appendMarkdown(`Offset: ${field.offset} bytes\n\n`);
         markdown.appendMarkdown(`Size: ${field.size} bytes\n\n`);
         markdown.appendMarkdown(`Alignment: ${field.alignment} bytes\n\n`);
+        markdown.appendMarkdown(`Cache Line: ${field.cacheLineStart}${field.crossesCacheLine ? `-${field.cacheLineEnd} ⚠️` : ''}\n\n`);
         
         if (field.paddingAfter > 0) {
-          markdown.appendMarkdown(`Warning: Padding after: ${field.paddingAfter} bytes\n\n`);
-          markdown.appendMarkdown(`*Consider reordering fields to reduce padding*`);
+          markdown.appendMarkdown(`⚠️ Padding after: ${field.paddingAfter} bytes\n\n`);
+        }
+
+        if (field.crossesCacheLine) {
+          markdown.appendMarkdown(`---\n\n`);
+          markdown.appendMarkdown(`**⚠️ Performance Warning**\n\n`);
+          markdown.appendMarkdown(`This field crosses cache line boundaries (${field.cacheLineStart} → ${field.cacheLineEnd}), which can cause:\n\n`);
+          markdown.appendMarkdown(`- Extra memory fetches\n`);
+          markdown.appendMarkdown(`- False sharing in concurrent code\n`);
+          markdown.appendMarkdown(`- Reduced cache efficiency\n`);
         }
         
         return new vscode.Hover(markdown);
