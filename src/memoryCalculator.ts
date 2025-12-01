@@ -34,8 +34,20 @@ export class MemoryCalculator {
     this.structRegistry.clear();
   }
 
-  getTypeInfo(typeName: string): TypeSizeInfo {
+  /**
+   * Get type size info with recursion protection
+   * VULN-018: Prevent unbounded recursion with seen set
+   * @param typeName The type name to look up
+   * @param seen Set of already-seen type names (for recursion detection)
+   */
+  getTypeInfo(typeName: string, seen: Set<string> = new Set()): TypeSizeInfo {
     const ptrSize = this.getPointerSize();
+    
+    // VULN-018: Detect circular struct references
+    if (seen.has(typeName)) {
+      // Return pointer size for circular references
+      return { size: ptrSize, alignment: ptrSize };
+    }
     
     // Basic Go types with their sizes
     switch (typeName) {
@@ -83,7 +95,12 @@ export class MemoryCalculator {
           if (match) {
             const count = parseInt(match[1], 10);
             const elemType = match[2];
-            const elemInfo = this.getTypeInfo(elemType);
+            const elemInfo = this.getTypeInfo(elemType, seen);
+            // VULN-014: Prevent integer overflow
+            const maxSafeSize = Number.MAX_SAFE_INTEGER / 8;
+            if (count > maxSafeSize || count * elemInfo.size > Number.MAX_SAFE_INTEGER) {
+              return { size: Number.MAX_SAFE_INTEGER, alignment: elemInfo.alignment };
+            }
             return {
               size: count * elemInfo.size,
               alignment: elemInfo.alignment
@@ -100,7 +117,9 @@ export class MemoryCalculator {
         // Check if it's a registered custom struct
         const structDef = this.structRegistry.get(typeName);
         if (structDef) {
-          const layout = this.calculateStructSize(structDef.fields);
+          // VULN-018: Track seen types to prevent infinite recursion
+          seen.add(typeName);
+          const layout = this.calculateStructSize(structDef.fields, seen);
           return { size: layout.size, alignment: layout.alignment };
         }
         
@@ -129,7 +148,11 @@ export class MemoryCalculator {
     return offset + (alignment - remainder);
   }
 
-  calculateStructSize(fields: Array<{ typeName: string }>): { size: number; alignment: number; fieldOffsets: number[]; paddings: number[] } {
+  /**
+   * Calculate struct size with recursion tracking
+   * VULN-018: Accept seen parameter for circular reference detection
+   */
+  calculateStructSize(fields: Array<{ typeName: string }>, seen: Set<string> = new Set()): { size: number; alignment: number; fieldOffsets: number[]; paddings: number[] } {
     if (fields.length === 0) {
       return { size: 0, alignment: 1, fieldOffsets: [], paddings: [] };
     }
@@ -140,7 +163,7 @@ export class MemoryCalculator {
     const paddings: number[] = [];
 
     for (const field of fields) {
-      const typeInfo = this.getTypeInfo(field.typeName);
+      const typeInfo = this.getTypeInfo(field.typeName, new Set(seen));
       maxAlignment = Math.max(maxAlignment, typeInfo.alignment);
       
       // Align the field
