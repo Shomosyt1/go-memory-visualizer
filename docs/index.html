@@ -52,7 +52,7 @@
             "@type": "Organization",
             "name": "RhinoSoftware"
         },
-        "softwareVersion": "0.2.0",
+        "softwareVersion": "0.3.0",
         "downloadUrl": "https://marketplace.visualstudio.com/items?itemName=RhinoSoftware.go-memory-visualizer",
         "screenshot": "https://1rhino2.github.io/go-memory-visualizer/og-image.png",
         "featureList": [
@@ -61,7 +61,9 @@
             "Multi-architecture support (amd64, arm64, 386)",
             "Padding detection and warnings",
             "Nested struct analysis",
-            "Export to JSON, Markdown, CSV"
+            "Export to JSON, Markdown, CSV",
+            "Cache line boundary visualization",
+            "Workspace-wide memory profiler"
         ],
         "programmingLanguage": "Go",
         "aggregateRating": {
@@ -236,6 +238,16 @@
                     <div class="feature-icon">EXPORT</div>
                     <h3>Export Reports</h3>
                     <p>Export detailed memory layout analysis to JSON, Markdown, or CSV formats. Perfect for documentation and code reviews.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">CACHE</div>
+                    <h3>Cache Line Visualization</h3>
+                    <p>See exactly which fields cross 64-byte cache line boundaries. Identify false sharing risks and optimize for CPU cache efficiency.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon">SCAN</div>
+                    <h3>Workspace Analyzer</h3>
+                    <p>Scan your entire codebase for struct optimization opportunities. Find the most impactful optimizations across all Go files.</p>
                 </article>
             </div>
         </div>
@@ -470,6 +482,14 @@
                     <p>Yes. Go Memory Visualizer automatically detects and calculates layouts for nested custom struct types, giving you accurate sizes for complex data structures with embedded types.</p>
                 </details>
                 <details class="faq-item">
+                    <summary>What is cache line visualization?</summary>
+                    <p>CPU caches load memory in 64-byte chunks called cache lines. When a field crosses a cache line boundary, it requires two memory fetches instead of one. Our cache line visualization shows exactly which fields cross these boundaries, helping you avoid false sharing in concurrent code.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>Can I analyze my entire codebase at once?</summary>
+                    <p>Yes. The new Workspace Analyzer command scans all Go files in your project and ranks structs by potential memory savings. Focus your optimization efforts on the highest-impact changes.</p>
+                </details>
+                <details class="faq-item">
                     <summary>What architectures are supported?</summary>
                     <p>The extension supports amd64 (64-bit x86), arm64 (64-bit ARM), and 386 (32-bit x86). Struct layouts can differ between architectures due to pointer size and alignment differences.</p>
                 </details>
@@ -562,7 +582,7 @@
                 <div class="footer-section">
                     <h4>Go Memory Visualizer</h4>
                     <p>Real-time struct memory layout visualization and optimization for VS Code. Analyze padding, alignment, and field ordering across multiple architectures.</p>
-                    <p class="footer-version">v0.2.0</p>
+                    <p class="footer-version">v0.3.0</p>
                 </div>
                 <div class="footer-section">
                     <h4>Quick Links</h4>
