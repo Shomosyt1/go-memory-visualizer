@@ -1,12 +1,61 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { GoParser } from './goParser';
 import { StructOptimizer } from './optimizer';
 import { Architecture, ExportFormat, CACHE_LINE_SIZE } from './types';
 
+// Security constants
+const MAX_FILES = 1000;
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const MAX_RESULTS = 500;
+const VALID_ARCHS: Architecture[] = ['amd64', 'arm64', '386'];
+
 // default to amd64 since most devs use that
 let currentArch: Architecture = 'amd64';
+
+// Debounce timeout handle
+let decorationDebounceTimer: NodeJS.Timeout | undefined;
+
+/**
+ * Escapes HTML special characters to prevent XSS attacks
+ * VULN-001, VULN-002: Fix DOM-based XSS
+ */
+function escapeHtml(str: string): string {
+  return str.replace(/[&<>"']/g, c => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return entities[c] || c;
+  });
+}
+
+/**
+ * Escapes markdown special characters to prevent markdown injection
+ * VULN-015, VULN-016: Fix markdown injection
+ */
+function escapeMarkdown(str: string): string {
+  return str.replace(/[\\`*_{}[\]()#+\-.!|]/g, '\\$&');
+}
+
+/**
+ * Sanitizes CSV values to prevent formula injection
+ * VULN-004: Fix CSV injection
+ */
+function sanitizeCSVValue(val: string): string {
+  let sanitized = val;
+  // Prefix with single quote if starts with formula characters
+  if (/^[=+\-@\t\r]/.test(sanitized)) {
+    sanitized = "'" + sanitized;
+  }
+  // Escape double quotes and wrap in quotes
+  return '"' + sanitized.replace(/"/g, '""') + '"';
+}
 
 const paddingDecorationType = vscode.window.createTextEditorDecorationType({
   backgroundColor: 'rgba(255, 165, 0, 0.3)',
@@ -33,10 +82,15 @@ const annotationDecorationType = vscode.window.createTextEditorDecorationType({
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('goMemoryVisualizer');
-  currentArch = config.get('defaultArchitecture', 'amd64') as Architecture;
+  // VULN-021: Validate architecture config value
+  const configArch = config.get('defaultArchitecture', 'amd64');
+  currentArch = VALID_ARCHS.includes(configArch as Architecture) 
+    ? configArch as Architecture 
+    : 'amd64';
 
   const parser = new GoParser(currentArch);
-  const optimizer = new StructOptimizer(parser['calculator']);
+  // VULN-003: Use public getter instead of bracket notation
+  const optimizer = new StructOptimizer(parser.getCalculator());
 
   // Register commands
   context.subscriptions.push(
@@ -82,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (editor && editor.document.languageId === 'go') {
-        updateDecorations(editor, parser);
+        debouncedUpdateDecorations(editor, parser);
       }
     })
   );
@@ -91,7 +145,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(event => {
       const editor = vscode.window.activeTextEditor;
       if (editor && event.document === editor.document && editor.document.languageId === 'go') {
-        updateDecorations(editor, parser);
+        // VULN-017: Debounce to prevent race conditions and CPU spike
+        debouncedUpdateDecorations(editor, parser);
       }
     })
   );
@@ -103,9 +158,25 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  // VULN-017: Clear debounce timer on deactivate
+  if (decorationDebounceTimer) {
+    clearTimeout(decorationDebounceTimer);
+  }
   paddingDecorationType.dispose();
   annotationDecorationType.dispose();
   cacheLineCrossDecorationType.dispose();
+}
+
+/**
+ * VULN-017: Debounced decoration update to prevent race conditions
+ */
+function debouncedUpdateDecorations(editor: vscode.TextEditor, parser: GoParser) {
+  if (decorationDebounceTimer) {
+    clearTimeout(decorationDebounceTimer);
+  }
+  decorationDebounceTimer = setTimeout(() => {
+    updateDecorations(editor, parser);
+  }, 250);
 }
 
 function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
@@ -120,7 +191,9 @@ function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
   const paddingRanges: vscode.DecorationOptions[] = [];
   const annotations: vscode.DecorationOptions[] = [];
   const cacheLineCrossRanges: vscode.DecorationOptions[] = [];
-  const paddingThreshold = config.get('paddingWarningThreshold', 8);
+  // VULN-022: Validate paddingWarningThreshold is a positive number
+  const rawThreshold = config.get('paddingWarningThreshold', 8);
+  const paddingThreshold = Math.max(0, Number(rawThreshold) || 8);
   const showCacheLineWarnings = config.get('showCacheLineWarnings', true);
 
   for (const struct of structs) {
@@ -153,11 +226,13 @@ function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
 
       // Highlight cache line crossings
       if (showCacheLineWarnings && field.crossesCacheLine) {
+        // VULN-016: Escape field name to prevent markdown injection
+        const safeFieldName = escapeMarkdown(field.name);
         cacheLineCrossRanges.push({
           range: line.range,
           hoverMessage: new vscode.MarkdownString(
             `**⚠️ Cache Line Crossing**\n\n` +
-            `Field \`${field.name}\` (${field.size} bytes) spans cache lines ${field.cacheLineStart} and ${field.cacheLineEnd}.\n\n` +
+            `Field \`${safeFieldName}\` (${field.size} bytes) spans cache lines ${field.cacheLineStart} and ${field.cacheLineEnd}.\n\n` +
             `This can cause **false sharing** in concurrent access and reduce cache efficiency.\n\n` +
             `Consider:\n` +
             `- Padding to align to cache line boundary\n` +
@@ -232,17 +307,20 @@ function showMemoryLayoutCommand(parser: GoParser) {
     return;
   }
 
-  let output = `# Memory Layout (${currentArch})\n\n`;
+  let output = `# Memory Layout (${escapeHtml(currentArch)})\n\n`;
   
   for (const struct of structs) {
-    output += `## ${struct.name}\n`;
+    // VULN-002: Escape all user-controlled content
+    const safeName = escapeHtml(struct.name);
+    output += `## ${safeName}\n`;
     output += `Total Size: ${struct.totalSize} bytes\n`;
     output += `Alignment: ${struct.alignment} bytes\n`;
     output += `Total Padding: ${struct.totalPadding} bytes\n`;
     output += `Cache Lines: ${struct.cacheLinesCrossed} (${struct.cacheLinesCrossed * CACHE_LINE_SIZE} bytes)\n`;
     
     if (struct.hotFields.length > 0) {
-      output += `⚠️ Fields crossing cache lines: ${struct.hotFields.join(', ')}\n`;
+      const safeHotFields = struct.hotFields.map(f => escapeHtml(f)).join(', ');
+      output += `⚠️ Fields crossing cache lines: ${safeHotFields}\n`;
     }
     output += '\n';
     
@@ -250,10 +328,12 @@ function showMemoryLayoutCommand(parser: GoParser) {
     output += '|-------|------|--------|------|---------|------------|\n';
     
     for (const field of struct.fields) {
+      const safeFieldName = escapeHtml(field.name);
+      const safeTypeName = escapeHtml(field.typeName);
       const cacheLineStr = field.crossesCacheLine 
         ? `${field.cacheLineStart}-${field.cacheLineEnd} ⚠️` 
         : `${field.cacheLineStart}`;
-      output += `| ${field.name} | ${field.typeName} | ${field.offset} | ${field.size} | ${field.paddingAfter} | ${cacheLineStr} |\n`;
+      output += `| ${safeFieldName} | ${safeTypeName} | ${field.offset} | ${field.size} | ${field.paddingAfter} | ${cacheLineStr} |\n`;
     }
     
     output += '\n### Cache Line Breakdown\n\n';
@@ -261,23 +341,30 @@ function showMemoryLayoutCommand(parser: GoParser) {
     output += '|------|-------|--------|------|--------|\n';
     
     for (const cl of struct.cacheLines) {
-      output += `| ${cl.lineNumber} | ${cl.startOffset}-${cl.endOffset} | ${cl.fields.join(', ')} | ${cl.bytesUsed}B | ${cl.bytesPadding}B |\n`;
+      const safeFields = cl.fields.map(f => escapeHtml(f)).join(', ');
+      output += `| ${cl.lineNumber} | ${cl.startOffset}-${cl.endOffset} | ${safeFields} | ${cl.bytesUsed}B | ${cl.bytesPadding}B |\n`;
     }
     
     output += '\n';
   }
 
+  // VULN-011: Configure secure webview options
   const panel = vscode.window.createWebviewPanel(
     'memoryLayout',
     'Go Memory Layout',
     vscode.ViewColumn.Beside,
-    {}
+    {
+      enableScripts: false,
+      localResourceRoots: []
+    }
   );
 
+  // VULN-002, VULN-011: Add CSP header
   panel.webview.html = `
     <!DOCTYPE html>
     <html>
       <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
         <style>
           body { font-family: var(--vscode-font-family); padding: 20px; }
           table { border-collapse: collapse; margin: 20px 0; }
@@ -407,17 +494,22 @@ async function exportLayoutCommand(parser: GoParser) {
         return;
       }
       
-      // write with explicit encoding and error handling
-      fs.writeFileSync(resolvedPath, content, { encoding: 'utf8', mode: 0o644 });
+      // VULN-008: Use async file operations to avoid blocking
+      // VULN-013: Use mode 0o600 for more secure file permissions
+      await fsPromises.writeFile(resolvedPath, content, { encoding: 'utf8', mode: 0o600 });
       
       // verify write
-      if (!fs.existsSync(resolvedPath)) {
+      try {
+        await fsPromises.access(resolvedPath);
+      } catch {
         throw new Error('File write verification failed');
       }
       
       vscode.window.showInformationMessage(`Memory layout exported successfully`);
     } catch (error) {
-      vscode.window.showErrorMessage(`Export failed: ${(error as Error).message}`);
+      // VULN-012: Avoid exposing internal error details to user
+      console.error('Export failed:', error);
+      vscode.window.showErrorMessage('Export failed. Check the output channel for details.');
     }
   }
 }
@@ -453,7 +545,8 @@ function generateCSVReport(data: ExportFormat): string {
   
   for (const struct of data.structs) {
     for (const field of struct.fields) {
-      csv += `"${struct.name}","${field.name}","${field.type}",${field.offset},${field.size},${field.alignment},${field.paddingAfter},${struct.totalSize},${struct.totalPadding},${struct.paddingPercentage.toFixed(2)},${data.architecture}\n`;
+      // VULN-004: Sanitize all values to prevent CSV formula injection
+      csv += `${sanitizeCSVValue(struct.name)},${sanitizeCSVValue(field.name)},${sanitizeCSVValue(field.type)},${field.offset},${field.size},${field.alignment},${field.paddingAfter},${struct.totalSize},${struct.totalPadding},${struct.paddingPercentage.toFixed(2)},${data.architecture}\n`;
     }
   }
 
@@ -487,19 +580,38 @@ async function analyzeWorkspaceCommand(parser: GoParser, optimizer: StructOptimi
   }, async (progress, token) => {
     const goFiles = await vscode.workspace.findFiles('**/*.go', '**/vendor/**');
     
-    let processed = 0;
-    for (const file of goFiles) {
+    // VULN-010: Limit number of files to prevent resource exhaustion
+    const filesToProcess = goFiles.slice(0, MAX_FILES);
+    if (goFiles.length > MAX_FILES) {
+      vscode.window.showWarningMessage(`Processing first ${MAX_FILES} files only`);
+    }
+    
+    for (const file of filesToProcess) {
       if (token.isCancellationRequested) {
         break;
       }
       
+      // VULN-010: Limit results to prevent memory exhaustion
+      if (results.length >= MAX_RESULTS) {
+        vscode.window.showWarningMessage(`Showing first ${MAX_RESULTS} results only`);
+        break;
+      }
+      
       progress.report({ 
-        increment: (100 / goFiles.length), 
+        increment: (100 / filesToProcess.length), 
         message: `${path.basename(file.fsPath)}` 
       });
 
       try {
-        const content = fs.readFileSync(file.fsPath, 'utf8');
+        // VULN-010: Check file size before reading
+        const stat = fs.statSync(file.fsPath);
+        if (stat.size > MAX_FILE_SIZE) {
+          console.debug(`Skipping large file: ${file.fsPath} (${stat.size} bytes)`);
+          continue;
+        }
+        
+        // VULN-008: Use async file read
+        const content = await fsPromises.readFile(file.fsPath, 'utf8');
         const structs = parser.parseStructs(content);
         
         for (const struct of structs) {
@@ -521,10 +633,9 @@ async function analyzeWorkspaceCommand(parser: GoParser, optimizer: StructOptimi
           }
         }
       } catch (e) {
-        // Skip files that can't be read
+        // VULN-024: Log errors instead of silently swallowing them
+        console.debug(`Skipping file ${file.fsPath}: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
-      
-      processed++;
     }
   });
 
@@ -537,21 +648,27 @@ async function analyzeWorkspaceCommand(parser: GoParser, optimizer: StructOptimi
   results.sort((a, b) => b.bytesSaveable - a.bytesSaveable);
 
   // Create report panel
+  // VULN-011: Configure secure webview options
   const panel = vscode.window.createWebviewPanel(
     'workspaceAnalysis',
     'Workspace Memory Analysis',
     vscode.ViewColumn.One,
-    { enableScripts: true }
+    { 
+      enableScripts: false,  // Disable scripts since we don't need them
+      localResourceRoots: [] // No local resources needed
+    }
   );
 
   const totalSaveable = results.reduce((sum, r) => sum + r.bytesSaveable, 0);
   const totalPadding = results.reduce((sum, r) => sum + r.totalPadding, 0);
   const structsWithCacheIssues = results.filter(r => r.hotFields.length > 0).length;
 
+  // VULN-001: Build HTML with proper escaping and CSP
   let html = `
     <!DOCTYPE html>
     <html>
       <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
         <style>
           body { font-family: var(--vscode-font-family); padding: 20px; color: var(--vscode-foreground); }
           h1, h2, h3 { color: var(--vscode-foreground); }
@@ -604,8 +721,13 @@ async function analyzeWorkspaceCommand(parser: GoParser, optimizer: StructOptimi
   `;
 
   for (const r of results) {
+    // VULN-001: Escape all user-controlled content to prevent XSS
+    const safeFile = escapeHtml(r.file);
+    const safeStructName = escapeHtml(r.structName);
+    const safeHotFields = r.hotFields.map(f => escapeHtml(f)).join(', ');
+    
     const hotFieldsStr = r.hotFields.length > 0 
-      ? `<span class="warning">${r.hotFields.join(', ')}</span>` 
+      ? `<span class="warning">${safeHotFields}</span>` 
       : '-';
     const saveableStr = r.bytesSaveable > 0 
       ? `<span class="saveable">${r.bytesSaveable}B</span>` 
@@ -613,8 +735,8 @@ async function analyzeWorkspaceCommand(parser: GoParser, optimizer: StructOptimi
     
     html += `
       <tr>
-        <td>${r.file}</td>
-        <td><strong>${r.structName}</strong></td>
+        <td>${safeFile}</td>
+        <td><strong>${safeStructName}</strong></td>
         <td>${r.totalSize}B</td>
         <td>${r.totalPadding}B (${r.paddingPercentage.toFixed(1)}%)</td>
         <td>${saveableStr}</td>
@@ -648,8 +770,13 @@ class MemoryLayoutHoverProvider implements vscode.HoverProvider {
       
       if (field) {
         const markdown = new vscode.MarkdownString();
-        markdown.appendMarkdown(`**${struct.name}.${field.name}**\n\n`);
-        markdown.appendMarkdown(`Type: \`${field.typeName}\`\n\n`);
+        // VULN-015: Escape user-controlled content to prevent markdown injection
+        const safeStructName = escapeMarkdown(struct.name);
+        const safeFieldName = escapeMarkdown(field.name);
+        const safeTypeName = escapeMarkdown(field.typeName);
+        
+        markdown.appendMarkdown(`**${safeStructName}.${safeFieldName}**\n\n`);
+        markdown.appendMarkdown(`Type: \`${safeTypeName}\`\n\n`);
         markdown.appendMarkdown(`Offset: ${field.offset} bytes\n\n`);
         markdown.appendMarkdown(`Size: ${field.size} bytes\n\n`);
         markdown.appendMarkdown(`Alignment: ${field.alignment} bytes\n\n`);
