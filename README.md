@@ -2,6 +2,8 @@
 
 **v0.3.0 is now available!** [Download from GitHub](https://github.com/1rhino2/go-memory-visualizer/releases/tag/v0.3.0) | [Install from OpenVSX](https://open-vsx.org/extension/RhinoSoftware/go-memory-visualizer) | [Visit Website](https://1rhino2.github.io/go-memory-visualizer/)
 
+Note: I was pretty late with releases because I forgot about openvsx, everything is released and updated accordingly. Maybe I should use a workflow, I dunno. Enjoy.
+
 
 
 A VS Code extension for real-time visualization and optimization of Go struct memory layout. This GitHub repository provides a powerful golang tool for analyzing struct padding, alignment, and cache performance in your Go code.
