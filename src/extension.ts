@@ -11,6 +11,7 @@ const MAX_FILES = 1000;
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const MAX_RESULTS = 500;
 const VALID_ARCHS: Architecture[] = ['amd64', 'arm64', '386'];
+const DEBOUNCE_DELAY_MS = 250;
 
 // default to amd64 since most devs use that
 let currentArch: Architecture = 'amd64';
@@ -176,7 +177,7 @@ function debouncedUpdateDecorations(editor: vscode.TextEditor, parser: GoParser)
   }
   decorationDebounceTimer = setTimeout(() => {
     updateDecorations(editor, parser);
-  }, 250);
+  }, DEBOUNCE_DELAY_MS);
 }
 
 function updateDecorations(editor: vscode.TextEditor, parser: GoParser) {
