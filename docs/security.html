@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO -->
+    <meta name="description" content="Security Advisory for Go Memory Visualizer VS Code Extension - December 2025 security audit results and remediation details.">
+    <meta name="keywords" content="go memory visualizer security, vscode extension security, security advisory">
+    <meta name="author" content="RhinoSoftware">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://1rhino2.github.io/go-memory-visualizer/security.html">
+    
+    <title>Security Advisory - Go Memory Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Security page specific styles using site CSS variables */
+        .security-hero {
+            background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
+            padding: 80px 20px 60px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .security-hero h1 {
+            color: var(--go-blue);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .security-hero .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        .security-hero .date {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        .advisory-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .advisory-notice {
+            background: rgba(0, 173, 216, 0.08);
+            border: 1px solid rgba(0, 173, 216, 0.25);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .advisory-notice h3 {
+            color: var(--go-blue);
+            margin-bottom: 10px;
+        }
+        .advisory-notice p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .section-heading {
+            color: var(--go-blue);
+            font-size: 1.5rem;
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .vuln-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .vuln-table th {
+            background: rgba(0, 173, 216, 0.1);
+            color: var(--go-blue);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .vuln-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .vuln-table tr:hover {
+            background: rgba(0, 173, 216, 0.05);
+        }
+        .severity-critical {
+            background: rgba(220, 80, 80, 0.15);
+            color: #e57373;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .severity-high {
+            background: rgba(255, 167, 38, 0.15);
+            color: #ffb74d;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .severity-medium {
+            background: rgba(255, 213, 79, 0.15);
+            color: #ffd54f;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .severity-low {
+            background: rgba(129, 199, 132, 0.15);
+            color: #81c784;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .status-fixed {
+            color: #81c784;
+            font-weight: 600;
+        }
+        .body-text {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 20px 0;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, var(--go-blue), var(--accent-green));
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -34px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            background: var(--go-blue);
+            border-radius: 50%;
+        }
+        .timeline-date {
+            color: var(--go-blue);
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .timeline-content {
+            color: var(--text-secondary);
+        }
+        .recommendation-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .recommendation-card h4 {
+            color: var(--go-blue);
+            margin-bottom: 10px;
+        }
+        .recommendation-card code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--go-blue);
+        }
+        .recommendation-card p {
+            color: var(--text-secondary);
+        }
+        .code-inline {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--go-blue);
+        }
+        .contact-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        .contact-section h3 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+        .contact-section p {
+            color: var(--text-secondary);
+        }
+        .contact-section a {
+            color: var(--go-blue);
+            text-decoration: none;
+        }
+        .contact-section a:hover {
+            text-decoration: underline;
+        }
+
+        /* Popup animations */
+        @keyframes popupBounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.1) rotate(-180deg) translateY(100px);
+            }
+            40% {
+                opacity: 1;
+                transform: scale(1.2) rotate(10deg) translateY(-20px);
+            }
+            60% {
+                transform: scale(0.9) rotate(-5deg) translateY(10px);
+            }
+            80% {
+                transform: scale(1.05) rotate(2deg) translateY(-5px);
+            }
+            100% {
+                transform: scale(1) rotate(0deg) translateY(0);
+            }
+        }
+        @keyframes popupSpinOut {
+            0% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg) translateY(0);
+            }
+            20% {
+                opacity: 1;
+                transform: scale(1.15) rotate(-15deg) translateY(-30px);
+            }
+            40% {
+                opacity: 1;
+                transform: scale(1.1) rotate(20deg) translateY(-50px);
+            }
+            60% {
+                opacity: 0.8;
+                transform: scale(0.9) rotate(180deg) translateY(-20px);
+            }
+            80% {
+                opacity: 0.4;
+                transform: scale(0.5) rotate(360deg) translateY(50px);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.1) rotate(720deg) translateY(200px);
+            }
+        }
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes overlayFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes buttonPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 173, 216, 0.4); }
+            50% { box-shadow: 0 0 20px 10px rgba(0, 173, 216, 0); }
+        }
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: overlayFadeIn 0.3s ease-out;
+        }
+        .popup-overlay.closing {
+            animation: overlayFadeOut 1.2s ease-in forwards;
+        }
+        .popup-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px 50px;
+            text-align: center;
+            max-width: 400px;
+            animation: popupBounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .popup-overlay.closing .popup-box {
+            animation: popupSpinOut 1.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+        }
+        .popup-box h2 {
+            color: var(--go-blue);
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+        .popup-box p {
+            color: var(--text-secondary);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        .popup-close {
+            background: var(--go-blue);
+            color: #fff;
+            border: none;
+            padding: 12px 35px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background 0.2s, transform 0.2s;
+            animation: buttonPulse 2s infinite;
+        }
+        .popup-close:hover {
+            background: #00c4f0;
+            transform: scale(1.1);
+            animation: none;
+        }
+        .popup-close:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.html" aria-label="Go Memory Visualizer Home">
+                    <span class="logo">GMV</span>
+                    <span class="brand-text">Go Memory Visualizer</span>
+                </a>
+            </div>
+            <button class="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="index.html#calculator">Calculator</a>
+                <a href="index.html#demo">Demo</a>
+                <a href="examples.html">Examples</a>
+                <a href="performance.html">Performance</a>
+                <a href="security.html" class="active">Security</a>
+                <a href="https://github.com/1rhino2/go-memory-visualizer" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="View on GitHub">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="security-hero">
+        <h1>Security Advisory</h1>
+        <p class="subtitle">Transparency report on security improvements in v0.3.1</p>
+        <p class="date">Published: December 5, 2025</p>
+    </header>
+
+    <main class="advisory-container">
+        <div class="advisory-notice">
+            <h3>All Vulnerabilities Resolved</h3>
+            <p>A comprehensive security audit was conducted from December 1-5, 2025. All identified vulnerabilities have been addressed in version 0.3.1. Users should update to the latest version.</p>
+        </div>
+
+        <h2 class="section-heading">Summary</h2>
+        <p class="body-text">
+            During a routine security review, I identified and remediated 18 security vulnerabilities across the Go Memory Visualizer extension. These issues ranged from critical XSS vulnerabilities in webviews to low-severity configuration validation gaps. All issues have been fully resolved, and no exploitation has been observed in the wild.
+        </p>
+
+        <h2 class="section-heading">Vulnerability Details</h2>
+        
+        <table class="vuln-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>VULN-001</td>
+                    <td><span class="severity-critical">CRITICAL</span></td>
+                    <td>XSS</td>
+                    <td>DOM-based XSS in Workspace Analysis webview via unescaped struct names</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-002</td>
+                    <td><span class="severity-critical">CRITICAL</span></td>
+                    <td>XSS</td>
+                    <td>DOM-based XSS in Memory Layout panel via unescaped field content</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-003</td>
+                    <td><span class="severity-critical">CRITICAL</span></td>
+                    <td>Encapsulation</td>
+                    <td>Private member access via bracket notation bypassing TypeScript access control</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-004</td>
+                    <td><span class="severity-high">HIGH</span></td>
+                    <td>Injection</td>
+                    <td>CSV formula injection in exported reports allowing code execution</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-005</td>
+                    <td><span class="severity-high">HIGH</span></td>
+                    <td>ReDoS</td>
+                    <td>Regular expression denial of service in struct field parsing</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-006</td>
+                    <td><span class="severity-high">HIGH</span></td>
+                    <td>ReDoS</td>
+                    <td>Regular expression denial of service in embedded field regex</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-008</td>
+                    <td><span class="severity-high">HIGH</span></td>
+                    <td>Performance</td>
+                    <td>Synchronous file I/O blocking extension host</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-010</td>
+                    <td><span class="severity-high">HIGH</span></td>
+                    <td>DoS</td>
+                    <td>Resource exhaustion via unbounded file processing in workspace analyzer</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-011</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>CSP</td>
+                    <td>Missing Content Security Policy in webview panels</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-012</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Info Disclosure</td>
+                    <td>Detailed error messages exposing internal paths and state</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-013</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Permissions</td>
+                    <td>Insecure file permissions (0o644) on exported files</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-014</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Integer Overflow</td>
+                    <td>Integer overflow in array size calculation for large arrays</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-015</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Injection</td>
+                    <td>Markdown injection in hover provider content</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-016</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Injection</td>
+                    <td>Markdown injection in editor decoration messages</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-017</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>Race Condition</td>
+                    <td>Race condition in decoration updates causing UI corruption</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-018</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>DoS</td>
+                    <td>Unbounded recursion in circular struct reference resolution</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-020</td>
+                    <td><span class="severity-medium">MEDIUM</span></td>
+                    <td>XSS</td>
+                    <td>XSS in documentation site calculator via field names</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+                <tr>
+                    <td>VULN-021</td>
+                    <td><span class="severity-low">LOW</span></td>
+                    <td>Validation</td>
+                    <td>Missing architecture configuration validation</td>
+                    <td class="status-fixed">Fixed</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 class="section-heading">Remediation Timeline</h2>
+        
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-date">December 1, 2025</div>
+                <div class="timeline-content">Security audit initiated. Identified encapsulation bypass and recursive overflow vulnerabilities. Implemented public getter pattern and recursion guards.</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">December 2, 2025</div>
+                <div class="timeline-content">Addressed XSS vulnerabilities in documentation site. Added security audit scripts to build pipeline.</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">December 3, 2025</div>
+                <div class="timeline-content">Comprehensive extension security hardening. Implemented HTML/Markdown escaping, CSV sanitization, CSP headers, and async I/O conversion.</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">December 4, 2025</div>
+                <div class="timeline-content">Code quality improvements and constant extraction for maintainability.</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">December 5, 2025</div>
+                <div class="timeline-content">Final documentation updates, security advisory published, and v0.3.1 released.</div>
+            </div>
+        </div>
+
+        <h2 class="section-heading">Recommended Actions</h2>
+        
+        <div class="recommendation-card">
+            <h4>Update Immediately</h4>
+            <p>All users should update to version 0.3.1 or later. In VS Code, go to Extensions, find Go Memory Visualizer, and click Update. Alternatively, run:</p>
+            <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px; margin-top: 10px; overflow-x: auto;"><code>code --install-extension RhinoSoftware.go-memory-visualizer</code></pre>
+        </div>
+
+        <div class="recommendation-card">
+            <h4>Verify Installation</h4>
+            <p>Confirm you're running the patched version by checking the extension version in VS Code's Extensions panel. The version should be <code>0.3.1</code> or higher.</p>
+        </div>
+
+        <div class="recommendation-card">
+            <h4>Review Exported Files</h4>
+            <p>If you previously exported CSV reports, review them for any suspicious formulas beginning with <code>=</code>, <code>+</code>, <code>-</code>, or <code>@</code> characters before opening in spreadsheet applications.</p>
+        </div>
+
+        <h2 class="section-heading">Technical Details</h2>
+        
+        <p class="body-text">
+            <strong style="color: #fff;">XSS Prevention:</strong> All user-controlled content (struct names, field names, type names) is now sanitized using dedicated <code class="code-inline">escapeHtml()</code> and <code class="code-inline">escapeMarkdown()</code> functions before rendering in webviews or hover content.
+        </p>
+        
+        <p class="body-text" style="margin-top: 15px;">
+            <strong style="color: #fff;">Content Security Policy:</strong> All webview panels now include strict CSP headers: <code class="code-inline">default-src 'none'; style-src 'unsafe-inline'</code>, preventing script execution and external resource loading.
+        </p>
+        
+        <p class="body-text" style="margin-top: 15px;">
+            <strong style="color: #fff;">Resource Limits:</strong> Workspace analysis now enforces limits of 1,000 files maximum, 1MB per file, and 500 results to prevent resource exhaustion attacks.
+        </p>
+        
+        <p class="body-text" style="margin-top: 15px;">
+            <strong style="color: #fff;">Regex Hardening:</strong> Complex regex patterns with optional groups were replaced with simpler, bounded patterns that pre-process input to strip comments and tags before matching.
+        </p>
+
+        <div class="contact-section">
+            <h3>Report Security Issues</h3>
+            <p style="margin-bottom: 15px;">Found a security vulnerability? Please report it responsibly.</p>
+            <p>
+                <a href="https://github.com/1rhino2/go-memory-visualizer/issues/new">Open an Issue</a>
+                <span style="color: #666; margin: 0 10px;">|</span>
+                <span style="color: #ccc;">Discord: <strong style="color: #00ADD8;">1rhino2</strong></span>
+            </p>
+        </div>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Go Memory Visualizer</h4>
+                    <p>Real-time struct memory layout visualization and optimization for VS Code.</p>
+                    <p class="footer-version">v0.3.1</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="https://github.com/1rhino2/go-memory-visualizer">GitHub Repository</a></li>
+                        <li><a href="https://marketplace.visualstudio.com/items?itemName=RhinoSoftware.go-memory-visualizer">VS Code Marketplace</a></li>
+                        <li><a href="https://github.com/1rhino2/go-memory-visualizer/issues">Report Issues</a></li>
+                        <li><a href="https://github.com/1rhino2/go-memory-visualizer/blob/main/LICENSE">MIT License</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Documentation</h4>
+                    <ul>
+                        <li><a href="https://github.com/1rhino2/go-memory-visualizer#readme">Getting Started</a></li>
+                        <li><a href="examples.html">Code Examples</a></li>
+                        <li><a href="performance.html">Performance Guide</a></li>
+                        <li><a href="security.html">Security Advisory</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Related Resources</h4>
+                    <ul>
+                        <li><a href="https://go.dev/ref/mem" rel="noopener" target="_blank">Go Memory Model</a></li>
+                        <li><a href="https://go.dev/doc/effective_go" rel="noopener" target="_blank">Effective Go</a></li>
+                        <li><a href="https://pkg.go.dev/unsafe#Sizeof" rel="noopener" target="_blank">unsafe.Sizeof</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 RhinoSoftware. Open source under the MIT License.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Sorry Popup -->
+    <div class="popup-overlay" id="sorryPopup">
+        <div class="popup-box">
+            <h2>Sorry!</h2>
+            <p>We apologize for any security concerns these vulnerabilities may have caused. All issues have been resolved in v0.3.1.</p>
+            <button class="popup-close" onclick="closePopup()">Got it</button>
+        </div>
+    </div>
+
+    <script>
+        function closePopup() {
+            const popup = document.getElementById('sorryPopup');
+            popup.classList.add('closing');
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 1200);
+        }
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
