@@ -1,15 +1,21 @@
 import { Architecture } from './types';
 
+/** Type size and alignment information */
 interface TypeSizeInfo {
   size: number;
   alignment: number;
 }
 
+/** Struct definition with name and field list */
 interface StructDefinition {
   name: string;
   fields: Array<{ name: string; typeName: string }>;
 }
 
+/**
+ * Calculates memory layout for Go structs based on architecture
+ * Supports amd64, arm64, and 386 architectures
+ */
 export class MemoryCalculator {
   private arch: Architecture;
   private structRegistry: Map<string, StructDefinition> = new Map();
