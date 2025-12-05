@@ -1,6 +1,10 @@
 import { StructInfo, FieldInfo, Architecture, CacheLineInfo, CACHE_LINE_SIZE } from './types';
 import { MemoryCalculator } from './memoryCalculator';
 
+/**
+ * Parser for Go struct definitions
+ * Extracts struct fields and calculates memory layout
+ */
 export class GoParser {
   private calculator: MemoryCalculator;
 
@@ -16,6 +20,7 @@ export class GoParser {
     return this.calculator;
   }
 
+  /** Update the target architecture for size calculations */
   setArchitecture(arch: Architecture): void {
     this.calculator.setArchitecture(arch);
   }
